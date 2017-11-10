@@ -39,10 +39,10 @@
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Vectorize.h"
 
-#include "llvm/CryptoUtils.h"
-#include "llvm/Transforms/Obfuscation/StringObfuscation.h"
-#include "llvm/Transforms/Obfuscation/Flattening.h"
-#include "llvm/Transforms/Obfuscation/Substitution.h"
+// #include "llvm/CryptoUtils.h"
+// #include "llvm/Transforms/Obfuscation/StringObfuscation.h"
+// #include "llvm/Transforms/Obfuscation/Flattening.h"
+// #include "llvm/Transforms/Obfuscation/Substitution.h"
 
 using namespace llvm;
 
@@ -105,17 +105,17 @@ EnableMLSM("mlsm", cl::init(true), cl::Hidden,
 
 // Flags for obfuscation
 
-static cl::opt<std::string> Seed("seed", cl::init(""),
-                                    cl::desc("seed for the random"));
+// static cl::opt<std::string> Seed("seed", cl::init(""),
+//                                     cl::desc("seed for the random"));
 
-static cl::opt<bool> StringObf("sobf", cl::init(false),
-                                  cl::desc("Enable the string obfuscation"));
+// static cl::opt<bool> StringObf("sobf", cl::init(false),
+//                                   cl::desc("Enable the string obfuscation"));
 
-static cl::opt<bool> Flattening("fla", cl::init(false),
-                                cl::desc("Enable the flattening pass"));
+// static cl::opt<bool> Flattening("fla", cl::init(false),
+//                                 cl::desc("Enable the flattening pass"));
 
-static cl::opt<bool> Substitution("sub", cl::init(false),
-                                  cl::desc("Enable instruction substitutions"));
+// static cl::opt<bool> Substitution("sub", cl::init(false),
+//                                   cl::desc("Enable instruction substitutions"));
 
 
 static cl::opt<bool> EnableLoopInterchange(
@@ -178,9 +178,9 @@ PassManagerBuilder::PassManagerBuilder() {
 
     // Initialization of the global cryptographically
     // secure pseudo-random generator
-    if(!Seed.empty()) {
-        llvm::cryptoutils->prng_seed(Seed.c_str());
-    }
+    // if(!Seed.empty()) {
+    //     llvm::cryptoutils->prng_seed(Seed.c_str());
+    // }
 
     PrepareForLTO = false;
     PGOInstrGen = RunPGOInstrGen;
@@ -387,9 +387,9 @@ void PassManagerBuilder::populateModulePassManager(
     legacy::PassManagerBase &MPM) {
   // Allow forcing function attributes as a debugging and tuning aid.
   MPM.add(createForceFunctionAttrsLegacyPass());
-  MPM.add(createStringObfuscation(StringObf));
-  MPM.add(createFlattening(Flattening));
-  MPM.add(createSubstitution(Substitution));
+  // MPM.add(createStringObfuscation(StringObf));
+  // MPM.add(createFlattening(Flattening));
+  // MPM.add(createSubstitution(Substitution));
 
 
   // If all optimizations are disabled, just run the always-inline pass and,
@@ -640,7 +640,7 @@ void PassManagerBuilder::populateModulePassManager(
   if (MergeFunctions)
     MPM.add(createMergeFunctionsPass());
 
-  MPM.add(createSubstitution(Substitution));
+  //MPM.add(createSubstitution(Substitution));
   addExtensionsToPM(EP_OptimizerLast, MPM);
 }
 

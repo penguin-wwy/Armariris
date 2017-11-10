@@ -16,7 +16,7 @@
 ;===------------------------------------------------------------------------===;
 
 [common]
-subdirectories = IPO InstCombine Instrumentation Scalar Utils Vectorize ObjCARC Obfuscation
+subdirectories = IPO InstCombine Instrumentation Scalar Utils Vectorize ObjCARC ;Obfuscation
 
 [component_0]
 type = Group
