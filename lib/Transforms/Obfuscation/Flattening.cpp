@@ -76,6 +76,41 @@ bool Flattening::flatten(Function *f) {
     FunctionPass *lower = createLowerSwitchPass();
     lower->runOnFunction(*f);
 
+    std::vector<BasicBlock *> needSplite;
+    unsigned instSum = 0;
+    for ( Function::iterator I = std::next(f->begin()); I != f->end(); I++ ) {
+        instSum += I->size();
+    }
+    for ( Function::iterator I = std::next(f->begin()); I != f->end(); I++ ) {
+        if ( I->size() > instSum / f->size() ) {
+            needSplite.push_back(&*I);
+        }
+    }
+    for ( auto I = needSplite.begin(); I != needSplite.end(); I++ ) {
+        //std::string tw = "split_" + std::to_string(++index);
+        BasicBlock::iterator j = (*I)->begin();
+        for ( unsigned step = 0; step < (*I)->size() / 2; step++ ) {
+            j++;
+        }
+        BasicBlock *next = (*I)->splitBasicBlock(j/*, tw*/);
+
+        Instruction *back = &(*I)->back();
+        if ( isa<BranchInst>(back) ) {
+            BranchInst *BI = dyn_cast<BranchInst>(back);
+            BI->eraseFromParent();
+            AllocaInst *tmpBool = new AllocaInst(Type::getInt32Ty(f->getContext()), 0, "tmp", *I);
+            new StoreInst(
+                    ConstantInt::get(Type::getInt32Ty(f->getContext()), 1), tmpBool, *I);
+            LoadInst *loadInst = new LoadInst(tmpBool, "tmp", *I);
+            ICmpInst *ICmp = new ICmpInst(**I, ICmpInst::ICMP_EQ, loadInst, loadInst);
+            BranchInst::Create(next, (*I)->getPrevNode(), ICmp, *I);
+        }
+
+        (*I)->getPrevNode()->dump();
+        (*I)->dump();
+        next->dump();
+    }
+
     // Save all original BB
     for (Function::iterator i = f->begin(); i != f->end(); ++i) {
         BasicBlock *tmp = &*i;
