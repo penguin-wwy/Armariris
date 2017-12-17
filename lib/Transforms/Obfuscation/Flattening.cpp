@@ -37,6 +37,8 @@ namespace {
         bool runOnFunction(Function &F);
 
         bool flatten(Function *f);
+
+        bool addBougusControlFlow(Function &func);
     };
 }
 
@@ -45,12 +47,203 @@ static RegisterPass<Flattening> X("flattening", "Call graph flattening");
 
 Pass *llvm::createFlattening(bool flag) { return new Flattening(flag); }
 
+void changeToAltered(BasicBlock *alteredBlock) {
+    for ( BasicBlock::iterator I = alteredBlock->begin(); I != alteredBlock->end(); I++ ) {
+        std::set<Instruction *> willDelete;
+        Instruction::BinaryOps firstArray[13] = {Instruction::Xor, Instruction::Or, Instruction::And,
+                                               Instruction::Add, Instruction::Sub, Instruction::Mul, Instruction::UDiv,
+                                               Instruction::SDiv, Instruction::URem, Instruction::SRem, Instruction::Shl,
+                                               Instruction::LShr, Instruction::AShr};
+        Instruction::BinaryOps secondArray[5] = {Instruction::FAdd, Instruction::FSub, Instruction::FMul,
+                                                Instruction::FDiv, Instruction::FRem};
+        if ( I->isBinaryOp() ) {
+            unsigned opcode = I->getOpcode();
+            BinaryOperator *op = NULL;
+
+            if ( opcode == Instruction::Add || opcode == Instruction::Sub ||
+                 opcode == Instruction::Mul || opcode == Instruction::UDiv ||
+                 opcode == Instruction::SDiv || opcode == Instruction::URem ||
+                 opcode == Instruction::SRem || opcode == Instruction::Shl ||
+                 opcode == Instruction::LShr || opcode == Instruction::AShr ||
+                 opcode == Instruction::And || opcode == Instruction::Or ||
+                 opcode == Instruction::Xor ) {
+                for ( int random = (int)llvm::cryptoutils->get_range(2); random < 3; random++ ) {
+                    unsigned randOp = llvm::cryptoutils->get_range(13);
+                    switch ( llvm::cryptoutils->get_range(4) ) {
+                        case 0:
+                            BinaryOperator::Create(firstArray[randOp], I->getOperand(0),
+                                                   I->getOperand(1), I->getName(), &*I);
+                            if ( willDelete.find(&*I) == willDelete.end() ) {
+                                willDelete.insert(&*I);
+                            }
+                            break;
+                        case 1:
+                            BinaryOperator::Create(firstArray[randOp], I->getOperand(0),
+                                                   I->getOperand(1), I->getName(), &*I);
+                            break;
+                        case 2:
+                            op = BinaryOperator::Create(firstArray[randOp], I->getOperand(0), I->getOperand(1), "", &*I);
+                            BinaryOperator::Create(firstArray[randOp], op, I->getOperand(1), "", &*I);
+                            break;
+                        case 3:
+                            if ( op != nullptr )
+                                BinaryOperator::Create(firstArray[randOp], op, I->getOperand(1), "", &*I);
+                            else
+                                BinaryOperator::Create(firstArray[randOp], I->getOperand(0), I->getOperand(1), "", &*I);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+            if ( opcode == Instruction::FAdd || opcode == Instruction::FSub ||
+                 opcode == Instruction::FMul || opcode == Instruction::FDiv ||
+                 opcode == Instruction::FRem ) {
+                for (int random = (int) llvm::cryptoutils->get_range(2); random < 3; ++random) {
+                    unsigned randOp = llvm::cryptoutils->get_range(5);
+                    switch (llvm::cryptoutils->get_range(3)) { // can be improved
+                        case 0: //do nothing
+                            BinaryOperator::Create(secondArray[randOp], I->getOperand(0), I->getOperand(1),
+                                               I->getName(), &*I);
+                            if ( willDelete.find(&*I) == willDelete.end() ) {
+                                willDelete.insert(&*I);
+                            }
+                            break;
+                        case 1:
+                            BinaryOperator::Create(secondArray[randOp], I->getOperand(0),
+                                                   I->getOperand(1), I->getName(), &*I);
+                            break;
+                        case 2:
+                            op = BinaryOperator::Create(secondArray[randOp], I->getOperand(0),
+                                                        I->getOperand(1), "", &*I);
+                            BinaryOperator::Create(secondArray[randOp], op,
+                                                         I->getOperand(1), "", &*I);
+                            break;
+                    }
+                }
+            }
+            ICmpInst::Predicate ICmpPreArray[] = {ICmpInst::ICMP_EQ, ICmpInst::ICMP_NE, ICmpInst::ICMP_UGT,
+                                                  ICmpInst::ICMP_UGE, ICmpInst::ICMP_ULE, ICmpInst::ICMP_ULT,
+                                                  ICmpInst::ICMP_SGE, ICmpInst::ICMP_SGT, ICmpInst::ICMP_SLE,
+                                                  ICmpInst::ICMP_SLT};
+            if ( opcode == Instruction::ICmp ) {
+                ICmpInst *currentI = (ICmpInst *) (&I);
+                switch (llvm::cryptoutils->get_range(3)) { // must be improved
+                    case 0: //do nothing
+                        break;
+                    case 1:
+                        currentI->swapOperands();
+                        break;
+                    case 2: // randomly change the predicate
+                        currentI->setPredicate(ICmpPreArray[llvm::cryptoutils->get_range(10)]);
+                        break;
+                }
+            }
+            FCmpInst::Predicate FCmpPreArray[] = {FCmpInst::FCMP_OEQ, FCmpInst::FCMP_ONE, FCmpInst::FCMP_UGE,
+                                                  FCmpInst::FCMP_UGT, FCmpInst::FCMP_ULE, FCmpInst::FCMP_ULT,
+                                                  FCmpInst::FCMP_OGE, FCmpInst::FCMP_OGT, FCmpInst::FCMP_OLT,
+                                                  FCmpInst::FCMP_OLE};
+            if ( opcode == Instruction::FCmp ) {
+                FCmpInst *currentI = (FCmpInst *) (&I);
+                switch (llvm::cryptoutils->get_range(3)) { // must be improved
+                    case 0: //do nothing
+                        break;
+                    case 1:
+                        currentI->swapOperands();
+                        break;
+                    case 2: // randomly change the predicate
+                        currentI->setPredicate(FCmpPreArray[llvm::cryptoutils->get_range(10)]);
+                        break;
+                }
+            }
+        }
+    }
+}
+
+void addBogusFlow(BasicBlock *basicBlock, Function &func, AllocaInst *randNum) {
+    BasicBlock::iterator middle = basicBlock->end();
+    int pos = basicBlock->size() / 2;
+    while (pos--) {
+        middle--;
+    }
+    BasicBlock *realBlock = basicBlock->splitBasicBlock(middle, "RealBlock");
+    ValueToValueMapTy VMap;
+    BasicBlock::iterator ji = realBlock->begin();
+    BasicBlock *alteredBlock = llvm::CloneBasicBlock(realBlock, VMap, "AlteredBlock", &func);
+    for ( BasicBlock::iterator I = alteredBlock->begin(); I != alteredBlock->end(); I++ ) {
+
+        for ( User::op_iterator OpI = I->op_begin(); OpI != I->op_end(); OpI++ ) {
+            Value *v = MapValue(*OpI, VMap, RF_None, 0);
+            if ( v != 0 ) {
+                *OpI = v;
+            }
+        }
+
+        if ( PHINode *PN = dyn_cast<PHINode>(I) ) {
+            for ( unsigned j = 0, e = PN->getNumIncomingValues(); j != e; j++ ) {
+                Value *v = MapValue(PN->getIncomingBlock(j), VMap, RF_None, 0);
+                if ( v != 0 ) {
+                    PN->setIncomingBlock(j, cast<BasicBlock>(v));
+                }
+            }
+        }
+        SmallVector<std::pair<unsigned, MDNode *>, 4> MDs;
+        I->getAllMetadata(MDs);
+        I->setDebugLoc(ji->getDebugLoc());
+        ji++;
+    }
+    changeToAltered(alteredBlock);
+
+    TerminatorInst *end = basicBlock->getTerminator();
+    LoadInst *loadInst = new LoadInst(randNum, "", end);
+    BinaryOperator *sub = BinaryOperator::Create(Instruction::Sub, (Value *)loadInst,
+                                ConstantInt::get(Type::getInt32Ty(func.getContext()), 1, false),
+                                "", end);
+    BinaryOperator *mul = BinaryOperator::Create(Instruction::Mul, (Value *)loadInst, sub, "", end);
+    BinaryOperator *rem = BinaryOperator::Create(Instruction::URem, mul,
+                                ConstantInt::get(Type::getInt32Ty(func.getContext()), 2,
+                                                 false), "", end);
+    ICmpInst *condition = new ICmpInst(end, ICmpInst::ICMP_EQ, rem,
+                             ConstantInt::get(Type::getInt32Ty(func.getContext()), 0,
+                                              false));
+    BranchInst::Create(realBlock, alteredBlock, (Value *)condition, basicBlock);
+    end->eraseFromParent();
+    alteredBlock->getTerminator()->setSuccessor(0, realBlock->getTerminator()->getSuccessor(0));
+}
+
+bool Flattening::addBougusControlFlow(Function &func) {
+    unsigned average = 0;
+    int sumLength = 0;
+    std::list<BasicBlock *> basicBlocks;
+    for ( Function::iterator I = func.begin(); I != func.end(); I++ ) {
+        if ( I == func.begin() ) {
+            continue;
+        }
+        sumLength += I->size();
+        basicBlocks.push_back(&*I);
+    }
+    average = sumLength / func.size();
+    BasicBlock::iterator begin = func.begin()->begin();
+    AllocaInst *randNum = new AllocaInst(Type::getInt32Ty(func.getContext()), 0, "", &*begin);
+    while (strcmp(begin->getOpcodeName(), "store")) {
+        begin++;
+    }
+    new StoreInst(ConstantInt::get(Type::getInt32Ty(func.getContext()), llvm::cryptoutils->get_range(100) + 1),
+                  randNum, &*begin);
+    for ( std::list<BasicBlock *>::iterator I = basicBlocks.begin(); I != basicBlocks.end(); I++ ) {
+        if ( (*I)->size() > average ) {
+            addBogusFlow(*I, func, randNum);
+        }
+    }
+    return true;
+}
+
 bool Flattening::runOnFunction(Function &F) {
     Function *tmp = &F;
-
     // Do we obfuscate
     if (toObfuscate(flag, tmp, "fla") && ((int) llvm::cryptoutils->get_range(100) <= Percentage)) {
-        //errs() << "fla " + F.getName() +"\n";
+        errs() << "fla " + F.getName() +"\n";
+        addBougusControlFlow(F);
         if (flatten(tmp)) {
             ++Flattened;
         }
@@ -60,7 +253,7 @@ bool Flattening::runOnFunction(Function &F) {
 }
 
 bool Flattening::flatten(Function *f) {
-    vector<BasicBlock *> origBB;
+    std::vector<BasicBlock *> origBB;
     BasicBlock *loopEntry;
     BasicBlock *loopEnd;
     LoadInst *load;
@@ -75,41 +268,6 @@ bool Flattening::flatten(Function *f) {
     // Lower switch
     FunctionPass *lower = createLowerSwitchPass();
     lower->runOnFunction(*f);
-
-    std::vector<BasicBlock *> needSplite;
-    unsigned instSum = 0;
-    for ( Function::iterator I = std::next(f->begin()); I != f->end(); I++ ) {
-        instSum += I->size();
-    }
-    for ( Function::iterator I = std::next(f->begin()); I != f->end(); I++ ) {
-        if ( I->size() > instSum / f->size() ) {
-            needSplite.push_back(&*I);
-        }
-    }
-    for ( auto I = needSplite.begin(); I != needSplite.end(); I++ ) {
-        //std::string tw = "split_" + std::to_string(++index);
-        BasicBlock::iterator j = (*I)->begin();
-        for ( unsigned step = 0; step < (*I)->size() / 2; step++ ) {
-            j++;
-        }
-        BasicBlock *next = (*I)->splitBasicBlock(j/*, tw*/);
-
-        Instruction *back = &(*I)->back();
-        if ( isa<BranchInst>(back) ) {
-            BranchInst *BI = dyn_cast<BranchInst>(back);
-            BI->eraseFromParent();
-            AllocaInst *tmpBool = new AllocaInst(Type::getInt32Ty(f->getContext()), 0, "tmp", *I);
-            new StoreInst(
-                    ConstantInt::get(Type::getInt32Ty(f->getContext()), 1), tmpBool, *I);
-            LoadInst *loadInst = new LoadInst(tmpBool, "tmp", *I);
-            ICmpInst *ICmp = new ICmpInst(**I, ICmpInst::ICMP_EQ, loadInst, loadInst);
-            BranchInst::Create(next, (*I)->getPrevNode(), ICmp, *I);
-        }
-
-        (*I)->getPrevNode()->dump();
-        (*I)->dump();
-        next->dump();
-    }
 
     // Save all original BB
     for (Function::iterator i = f->begin(); i != f->end(); ++i) {
