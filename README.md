@@ -1,6 +1,8 @@
 ### 修改
 
-将Obfuscation pass在LLVM中由静态库(.a文件)修改为动态库(.dylib)，可以直接又opt加载启动，输入bitcode或者IR文件，混淆输出IR文件
+（1）将Obfuscation pass在LLVM中由静态库(.a文件)修改为动态库(.dylib)，可以直接又opt加载启动，输入bitcode或者IR文件，混淆输出IR文件；
+
+（2）增加了虚假控制流；
 
 # Armariris
 孤挺花（Armariris） --  由上海交通大学密码与计算机安全实验室维护的LLVM混淆框架
@@ -17,8 +19,8 @@ Armariris是作者自创语言Selahpheno中孤挺花的意思.
 目前开放功能包括：
  - 字符串加密.
   ![sobf](sobf.png)
-- 控制流扁平化
-  ![fla](fla.png)
+- 控制流扁平化+虚假控制流
+  ![fla](fla.png)
 - 指令替换
   ![sub](sub.png)
 
@@ -29,25 +31,26 @@ mkdir obf
 cd obf
 clone git@github.com:gossip-sjtu/Armariris.git
 cmake -DCMAKE_BUILD_TYPE:String=Release ./Armariris
-make -j4
+make -j 4
 ```
 
 ### 用法
-编译时候添加选项开启字符串加密
+使用opt加载LLVMObfuscation.dylib
+
+控制流扁平化+虚假控制流
+
 ```shell
--mllvm -sobf
+./bin/opt -load ./lib/LLVMObfuscation.dylib -flattening test.ll -o out.bc -- [编译参数]
 ```
-开启控制流扁平化
+指令替换
+
 ```shell
--mllvm -fla
+./bin/opt -load ./lib/LLVMObfuscation.dylib -substitution test.ll -o out.bc -- [编译参数]
 ```
-开启指令替换
+字符串加密
+
 ```shell
--mllvm -sub
-```
-指定随机数生成器种子
-```shell
--mllvm -seed=0xdeadbeaf
+./bin/opt -load ./lib/LLVMObfuscation.dylib -GVDiv test.ll -o out.bc -- [编译参数]
 ```
 
 ## English
@@ -56,7 +59,7 @@ Armariris: an obfuscator based on LLVM project for multiple languages and platfo
 
 Currently support:
  - string obfuscation
- - control flow flattening
+ - control flow flattening and bogus control flow
  - instruction substitutions
 
 
@@ -76,19 +79,15 @@ make -j4
 ```
 
 ### Usage
-Add option  for opening string obfuscation when compiling. 
+string obfuscation. 
 ```shell
--mllvm -sobf
+./bin/opt -load ./lib/LLVMObfuscation.dylib -GVDiv test.ll -o out.bc -- [compiler args]
 ```
-Add option  for opening control flow flattening when compiling. 
+control flow flattening and bogus control flow. 
 ```shell
--mllvm -fla
+./bin/opt -load ./lib/LLVMObfuscation.dylib -flattening test.ll -o out.bc -- [compiler args]
 ```
-Add option  for opening instruction substitutions when compiling. 
+instruction substitutions. 
 ```shell
--mllvm -sub
-```
-Add option for setting random seed.
-```shell
--mllvm -seed=0xdeadbeaf
+./bin/opt -load ./lib/LLVMObfuscation.dylib -substitution test.ll -o out.bc -- [compiler args]
 ```
